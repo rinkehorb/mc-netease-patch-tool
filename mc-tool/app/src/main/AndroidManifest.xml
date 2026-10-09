@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 生成完直接调起安装器 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- 仅用于 API<29 把成品另存到公共 Download 目录 -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- 这个工具本身不需要联网，所以一个网络权限都不要 -->
+
+    <!--
+      导入外部世界时要把处理好的包写进公共 Download 目录（游戏要读它们）。
+      Android 10+ 走 MediaStore 不需要权限；Android 9 及以下才需要这个，
+      所以带上 maxSdkVersion="28"。
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!--
+      导入存档要找到已安装的《我的世界》并把文件交给它。
+      Android 11+ 有包可见性限制，不声明 <queries> 的话
+      getPackageInfo / getLaunchIntentForPackage 会直接查不到。
+    -->
+    <queries>
+        <package android:name="com.netease.mc.qihoo" />
+        <package android:name="com.netease.mc.aligames" />
+        <package android:name="com.netease.mc" />
+        <package android:name="com.mojang.minecraftpe" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:largeHeap="true"
+        android:requestLegacyExternalStorage="true"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MCPatch">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 把自己产出的文件（生成的 APK、待导入的存档）以 content:// 暴露给安装器 / 游戏 -->
+        <provider
+            android:name=".ShareFileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

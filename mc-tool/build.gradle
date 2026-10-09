@@ -1,0 +1,8 @@
+// 顶层构建文件。AGP 8.5.2 + Gradle 8.7 + JDK 17。
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
+}

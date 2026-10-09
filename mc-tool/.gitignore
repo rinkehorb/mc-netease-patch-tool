@@ -1,0 +1,33 @@
+# Gradle
+.gradle/
+.gradle-home/
+build/
+*/build/
+manual-build/
+.robohome/
+.m2repo/
+gtmp/
+local.properties
+
+# 本仓库为验证内嵌的工具链（体积很大，可按需删除）
+tools/jdk/
+tools/android-sdk/
+tools/gradle-dist/
+tools/*.zip
+tools/ptx/
+tools/px/
+tools/bt/
+
+# 测试产物
+out/
+fixtures/*.apk
+
+# 签名密钥：真用的那两个绝不进仓库，只留 *.example（见 app/src/main/assets/README.md）
+app/src/main/assets/mc-patch-key.pk8
+app/src/main/assets/mc-patch-cert.pem
+.genkey-tmp/
+
+# IDE
+.idea/
+*.iml
+.DS_Store

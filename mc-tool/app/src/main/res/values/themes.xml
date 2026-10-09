@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  主题：默认（values/）是浅色；
+  values-night/themes.xml 里把同名 Theme.MCPatch 的父主题换成深色，
+  于是「跟随系统」为默认行为 —— 系统切深色，本页跟着切。
+  用户手动指定浅/深时，MainActivity 会在 setContentView 之前
+  setTheme(Theme.MCPatch.Light / Theme.MCPatch.Dark) 覆盖掉系统值。
+-->
+<resources>
+    <style name="Theme.MCPatch" parent="@android:style/Theme.Material.Light.DarkActionBar" />
+
+    <style name="Theme.MCPatch.Light" parent="@android:style/Theme.Material.Light.DarkActionBar" />
+
+    <style name="Theme.MCPatch.Dark" parent="@android:style/Theme.Material" />
+</resources>

@@ -1,0 +1,55 @@
+# 网易《我的世界》0.2.0.25445 —— 已下线域名黑洞表
+#
+# 用途：让游戏"以为"自己断网，从而走你已经验证过可用的离线分支。
+#       配合联网状态下离线游玩最稳，也是本补丁的兜底方案。
+#
+# 全部指向 127.0.0.1（而不是 0.0.0.0）：
+#   连接会被立刻 refuse，而不是慢慢超时，游戏能马上走错误分支，
+#   启动速度反而比真断网更快。
+#
+# 用法见同目录《网络屏蔽指南.md》。
+# ---------------------------------------------------------------------------
+
+# ===== 核心（必须）：导致 XML 弹窗的 CDN =====
+127.0.0.1 g79.gdl.netease.com
+127.0.0.1 g0.gdl.netease.com
+127.0.0.1 gdl.netease.com
+127.0.0.1 scdn-netease-hangzhou-gdl17.oss-cn-hangzhou.aliyuncs.com
+
+# ===== 重要：native 启动器状态机（ReqServerlistStage / ReqH5VersionStage /
+#       InstallAssetStage）依赖的更新与服务器列表接口 =====
+127.0.0.1 g79.update.netease.com
+127.0.0.1 mbdl.update.netease.com
+127.0.0.1 fc.my.163.com
+127.0.0.1 g79.drpf.x.netease.com
+127.0.0.1 drpf.x.netease.com
+127.0.0.1 g55-02.gph.netease.com
+127.0.0.1 g55-03.gph.netease.com
+127.0.0.1 g55-04.gph.netease.com
+
+# ===== 网易 SDK：公告 / 用户中心 / 日志上报 / 反外挂 =====
+127.0.0.1 api.pub.seadra.netease.com
+127.0.0.1 qa.api.pub.seadra.netease.com
+127.0.0.1 mgbc.matrix.netease.com
+127.0.0.1 mgbsdktest.matrix.netease.com
+127.0.0.1 applog.matrix.netease.com
+127.0.0.1 appdump.x.netease.com
+127.0.0.1 data-detect.nie.netease.com
+127.0.0.1 g0-unipatch.nie.netease.com
+127.0.0.1 sigma-echoes.proxima.nie.netease.com
+127.0.0.1 udt-sigma.proxima.nie.netease.com
+127.0.0.1 api.np.mobilem.360.cn
+
+# ===== 可选：360 渠道 SDK（挡掉能让"检查更新/登录"更快失败，
+#       但也可能让 SDK 初始化路径变化，介意的话整段注释掉）=====
+# 127.0.0.1 f.s.360.cn
+# 127.0.0.1 gc.mobilem.360.cn
+# 127.0.0.1 openboxcdn.mobilem.360.cn
+# 127.0.0.1 gamebox.360.cn
+# 127.0.0.1 content.360pay.cn
+# 127.0.0.1 h5.mse.360.cn
+# 127.0.0.1 bbs.u.360.cn
+
+# ---------------------------------------------------------------------------
+# 如果只想最小化改动，其实只留第 1 段（gdl.netease.com 那 4 行）通常就够了，
+# 因为 XML 弹窗就是它返回的。第 2、3 段是让整个启动流程更快落到离线分支。

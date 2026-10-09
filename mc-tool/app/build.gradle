@@ -1,0 +1,120 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.mctool.mcpatch'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.mctool.mcpatch"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    // 刻意用工程自带的密钥库，不用 AGP 自动生成的 debug 密钥：
+    //   1) 产出结果可复现，不依赖 ~/.android/debug.keystore 是否存在；
+    //   2) 这把就是签 v19 用的同一把 key，方便对照。
+    // 注意：这只是个自用工具，密钥库密码是公开的固定值，不要用于任何要发布的包。
+    signingConfigs {
+        mcpatch {
+            storeFile file('keystore/mc-patch.jks')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            // 三个方案都开：v1 给老系统兜底，v2/v3 是现代 Android 实际使用的。
+            // AGP 默认不开 v3，这里显式打开，免得出现「同一份源码两条构建路径签名不一致」。
+            enableV1Signing true
+            enableV2Signing true
+            enableV3Signing true
+            enableV4Signing false
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.mcpatch
+        }
+        debug {
+            minifyEnabled false
+            signingConfig signingConfigs.mcpatch
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    // apksig 里带了 META-INF 之类的资源，打包时排掉，避免重复文件报错
+    packaging {
+        resources {
+            excludes += ['META-INF/*', 'META-INF/**', '**/module-info.class']
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+
+    // 允许单元测试访问真实的资源（Robolectric 需要）
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+        unitTests.all {
+            // JDK 17 起 java.base 默认不向未命名模块开放，而 Robolectric 的
+            // FileDescriptor 拦截器要反射改 java.io.FileDescriptor.fd，
+            // 不放开这几个包会直接抛 InaccessibleObjectException。
+            jvmArgs += [
+                    '--add-opens=java.base/java.io=ALL-UNNAMED',
+                    '--add-opens=java.base/java.lang=ALL-UNNAMED',
+                    '--add-opens=java.base/java.util=ALL-UNNAMED',
+                    '--add-opens=java.base/java.nio=ALL-UNNAMED',
+                    '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+                    '--add-opens=java.base/java.security=ALL-UNNAMED',
+                    '--add-opens=java.base/java.net=ALL-UNNAMED',
+                    '--add-opens=java.base/java.text=ALL-UNNAMED',
+            ]
+
+            // 可选：把 Robolectric 的文件落点改到指定目录。
+            // 它会在 user.home 下建下载锁文件 <user.home>/.robolectric-download-lock，
+            // 并把 android-all jar 缓存到 <user.home>/.m2/repository。
+            // 默认不设置，走你机器上正常的用户主目录；
+            // 只有构建时显式传 -Dmc.robolectric.home=<目录> 才会生效。
+            def h = System.getProperty('mc.robolectric.home')
+            if (h) {
+                def home = new File(h)
+                def tmp = new File(home, 'tmp')
+                tmp.mkdirs()
+                systemProperty 'user.home', home.absolutePath
+                systemProperty 'java.io.tmpdir', tmp.absolutePath
+            }
+        }
+    }
+
+    // 核心代码是纯 Java，不需要任何 Android 依赖
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java']
+        }
+    }
+}
+
+dependencies {
+    // Google 官方的 apksig（apksigner 的内核，零依赖纯 Java），
+    // 用于在手机上完成 v1+v2+v3 签名
+    implementation 'com.android.tools.build:apksig:8.7.3'
+
+    // 框架级单元测试：在 JVM 上跑真实的 Android 框架代码，
+    // 用来验证「Activity 能起来、布局能膨胀、控件都能绑上、内置密钥能读出来」
+    // —— 也就是「装上去一打开就崩」这个最致命的风险。
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.13'
+}

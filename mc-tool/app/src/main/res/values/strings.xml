@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MC 一键修改器</string>
+
+    <!-- 作者信息（显示在标题栏副标题 + 页面底部） -->
+    <string name="author_name">仁渴侯壁rinkehorb</string>
+    <string name="author_subtitle">by 仁渴侯壁rinkehorb</string>
+    <string name="credit">MC 一键修改器 · 作者 仁渴侯壁rinkehorb\n全部在本机离线完成，不联网、不上传</string>
+
+    <string name="title_intro">网易《我的世界》APK 一键魔改工具\n不联网、不上传，全部在手机本地完成</string>
+
+    <string name="sec_src">1. 源 APK</string>
+    <string name="pick_apk">选择《我的世界》APK</string>
+    <string name="no_apk">未选择</string>
+    <string name="source_preparing">正在准备源 APK（拷贝到本地并体检）…</string>
+    <string name="src_line_head">包名 %1$s    版本 %2$s</string>
+    <string name="src_line_size">大小 %1$s</string>
+    <string name="src_sig_same">签名：与内置密钥一致 ✅ 可直接覆盖安装</string>
+    <string name="src_sig_diff">签名：与内置密钥不同 ⚠ 装之前必须先卸载原版</string>
+    <string name="src_sig_unknown">签名：读不出来 ⚠ 无法判断能否覆盖安装</string>
+    <string name="src_sig_invalid">签名：校验没通过 ⚠ 这个源包本身可能有问题（但仍可尝试生成）</string>
+    <string name="src_struct_ok">结构：网易版 ✅ 皮肤定义 + %1$d 个语言文件</string>
+    <string name="src_struct_part">结构：能改，但有缺项 ⚠ %1$s</string>
+    <string name="src_struct_bad">结构：不像网易版 ⚠ %1$s</string>
+    <string name="src_missing_skindefs">缺少皮肤定义 skindefs.json（换皮肤/手臂会跳过）</string>
+    <string name="src_missing_lang">缺少 texts/*.lang（改名字会失败）</string>
+    <string name="src_prepare_failed">准备失败：%1$s</string>
+    <string name="need_repick">上次选的 APK 已读不到，请重新选一次</string>
+
+    <string name="sec_name">2. 玩家名称</string>
+    <string name="cb_rename">修改玩家名称</string>
+    <string name="hint_name">例如：Miku</string>
+    <string name="clear_name">清空</string>
+    <string name="name_note">这个网易版本是把「皮肤显示名」当本地玩家名用的，\n所以改的是 vanilla/texts/*.lang 里的 skin.name.*</string>
+
+    <string name="sec_skin">3. 皮肤</string>
+    <string name="cb_skin">替换皮肤</string>
+    <string name="pick_skin">从相册选皮肤图（64x64 或 128x128）</string>
+    <string name="no_skin">未选择</string>
+    <string name="arms_slim">细手臂（Alex）</string>
+    <string name="arms_classic">粗手臂（Steve）</string>
+    <string name="skin_note">原包四个皮肤文件都是 64x64。换成 128x128 也能用。\n手臂粗细由 skindefs.json 的 geometry 决定。</string>
+
+    <string name="sec_pack">4. 资源包</string>
+    <string name="cb_pack">替换资源包</string>
+    <string name="pick_pack">选择 .zip / .mcpack 资源包（可多选）</string>
+    <string name="no_pack">未选择</string>
+    <string name="clear_pack">清空</string>
+    <string name="pack_note">资源包会覆盖进 assets/resource_packs/vanilla/（等价于一直挂在最上层）。\n包自己的 manifest.json / pack_icon.png 不会被覆盖，texts/*.lang 采用追加合并。\n选了多个时按顺序叠加：后面的覆盖前面的同名文件。</string>
+
+    <string name="generate">一键生成 APK</string>
+    <string name="cancel">取消</string>
+    <string name="install_now">立即安装</string>
+    <string name="auto_export">生成后自动另存一份到 Download 目录</string>
+    <string name="copy_log">复制日志</string>
+    <string name="log_copied">日志已复制到剪贴板</string>
+    <string name="auto_exported">已自动另存到 Download 目录：%1$s</string>
+
+    <!-- ===== 导入存档（与改包无关的独立功能）===== -->
+    <string name="sec_import">5. 导入外部世界（不用 root）</string>
+    <string name="import_note">网易版的「离线模式」世界列表读的是网易自己的世界记录，不是扫描目录，所以外部存档直接拷进去永远看不见。这里走通了网易 H5 自己的写文件通道：工具把世界拆成几个包放进 Download，游戏里点一下「导入世界」就能登记进列表。\n\n需要先安装用本工具生成的改包（它里面注入了导入界面）。\n顺序：① 选世界 → ② 准备导入 → ③ 进游戏点左下角「导入世界」→ ④ 完全退出游戏再重开。</string>
+    <string name="pick_import">选择 .mcworld / .zip 世界存档</string>
+    <string name="no_import">未选择</string>
+    <string name="do_import">② 准备导入（写到 Download）</string>
+    <string name="cb_downgrade">存档比客户端新时自动降级（推荐）</string>
+    <string name="import_copying">拷贝存档到工作目录…</string>
+    <string name="import_preparing">体检并拆分存档（槽位 %1$s）…</string>
+    <string name="import_writing">写入 Download（%1$d/%2$d）…</string>
+    <string name="import_ready">✅ 已准备好（槽位 %1$s，世界「%2$s」）\n\n现在：打开游戏 → 点左下角「导入世界」→ 完全退出游戏再重新打开，世界就会出现在列表里。</string>
+    <string name="import_ready_short">已准备好，去游戏里点「导入世界」</string>
+    <string name="import_need_file">请先选一个世界存档</string>
+    <string name="import_failed">导入准备失败：%1$s</string>
+
+    <!-- 主题切换（标题栏右上角） -->
+    <string name="theme_auto">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_now">外观：%1$s（再点一下切换）</string>
+
+    <string name="sign_ok">内置密钥与 minecraft 改包同签名，可直接覆盖安装，不用卸载、不丢存档</string>
+    <string name="sign_bad">内置密钥与源包签名不一致，装之前需要先卸载原版</string>
+    <string name="sign_broken">内置签名材料读取失败：%1$s\n这个版本无法给产出包签名，请反馈这个错误。</string>
+    <string name="sign_example">⚠️ 正在使用公开的示例密钥：谁都能签出能覆盖安装到你手机上的包。想换成自己的，见 assets/README.md</string>
+    <string name="sign_missing">没有找到签名密钥（assets/mc-patch-key.pk8）\n请先在电脑上跑 tools/genkey.ps1（Linux/macOS 用 tools/genkey.sh）生成，再重新构建本工具。</string>
+
+    <string name="need_change">请至少勾选一项要修改的内容</string>
+    <string name="need_apk_first">请先选择源 APK</string>
+    <string name="space_low">可用空间不足，需要大约 %1$s</string>
+    <string name="install_unknown_sources">请先允许本应用「安装未知来源应用」，然后再点一次「立即安装」</string>
+    <string name="done">已生成：%1$s</string>
+</resources>

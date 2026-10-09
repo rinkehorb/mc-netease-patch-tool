@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深色模式：把 Theme.MCPatch 的父主题换成全深色。
+     系统切到深色时 Activity 会重建，从而套用这里。 -->
+<resources>
+    <style name="Theme.MCPatch" parent="@android:style/Theme.Material" />
+</resources>

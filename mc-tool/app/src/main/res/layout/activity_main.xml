@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="6dp"
+            android:text="@string/title_intro"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <!-- ================= 1. 源 APK ================= -->
+        <TextView style="@style/Section" android:text="@string/sec_src" />
+
+        <Button
+            android:id="@+id/btnPickApk"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/pick_apk" />
+
+        <TextView
+            android:id="@+id/tvApk"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:text="@string/no_apk"
+            android:textSize="12sp" />
+
+        <!-- 选完包后自动体检的结果：包名/版本/签名是否与内置密钥一致/结构是否网易版 -->
+        <TextView
+            android:id="@+id/tvSourceInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:padding="8dp"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <!-- ================= 2. 玩家名称 ================= -->
+        <TextView style="@style/Section" android:text="@string/sec_name" />
+
+        <CheckBox
+            android:id="@+id/cbRename"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cb_rename" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/etName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="@string/hint_name"
+                android:inputType="text"
+                android:maxLength="24"
+                android:maxLines="1" />
+
+            <Button
+                android:id="@+id/btnClearName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:minWidth="64dp"
+                android:text="@string/clear_name" />
+        </LinearLayout>
+
+        <TextView style="@style/Note" android:text="@string/name_note" />
+
+        <!-- ================= 3. 皮肤 ================= -->
+        <TextView style="@style/Section" android:text="@string/sec_skin" />
+
+        <CheckBox
+            android:id="@+id/cbSkin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cb_skin" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnPickSkin"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/pick_skin" />
+
+            <ImageView
+                android:id="@+id/ivSkin"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_marginStart="10dp"
+                android:background="@android:color/darker_gray"
+                android:contentDescription="@string/sec_skin"
+                android:scaleType="fitCenter" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvSkin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:text="@string/no_skin"
+            android:textSize="12sp" />
+
+        <RadioGroup
+            android:id="@+id/rgArms"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/rbSlim"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="@string/arms_slim" />
+
+            <RadioButton
+                android:id="@+id/rbClassic"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/arms_classic" />
+        </RadioGroup>
+
+        <TextView style="@style/Note" android:text="@string/skin_note" />
+
+        <!-- ================= 4. 资源包 ================= -->
+        <TextView style="@style/Section" android:text="@string/sec_pack" />
+
+        <CheckBox
+            android:id="@+id/cbPack"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/cb_pack" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnPickPack"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/pick_pack" />
+
+            <Button
+                android:id="@+id/btnClearPack"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:minWidth="64dp"
+                android:text="@string/clear_pack" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvPack"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:text="@string/no_pack"
+            android:textSize="12sp" />
+
+        <TextView style="@style/Note" android:text="@string/pack_note" />
+
+        <!-- ================= 签名提示 ================= -->
+        <TextView
+            android:id="@+id/tvSign"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:padding="8dp"
+            android:textSize="12sp"
+            android:text="@string/sign_ok" />
+
+        <!-- ================= 生成 ================= -->
+        <Button
+            android:id="@+id/btnGenerate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/generate"
+            android:textStyle="bold" />
+
+        <CheckBox
+            android:id="@+id/cbAutoExport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/auto_export" />
+
+        <ProgressBar
+            android:id="@+id/progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:max="1000" />
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnInstall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:text="@string/install_now" />
+
+        <Button
+            android:id="@+id/btnCopyLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/copy_log" />
+
+        <!-- ================= 5. 导入存档（与改包无关） ================= -->
+        <TextView style="@style/Section" android:text="@string/sec_import" />
+
+        <TextView style="@style/Note" android:text="@string/import_note" />
+
+        <Button
+            android:id="@+id/btnPickImport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/pick_import" />
+
+        <TextView
+            android:id="@+id/tvImport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:text="@string/no_import"
+            android:textSize="12sp" />
+
+        <CheckBox
+            android:id="@+id/cbDowngrade"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/cb_downgrade"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnDoImport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:text="@string/do_import" />
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="monospace"
+            android:textSize="11sp" />
+
+        <!-- 作者署名 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="18dp"
+            android:background="?android:attr/listDivider" />
+
+        <TextView
+            android:id="@+id/tvCredit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="8dp"
+            android:alpha="0.75"
+            android:gravity="center"
+            android:text="@string/credit"
+            android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,361 @@
+<!-- ================================================================
+     MCPROBE v6 —— 3a 收尾：验证「外部导入」的完整链路
+
+     v5 实测得到的关键事实：
+       1. decompress_map(src, dest, true) 会把目录【压平】—— db/ 前缀被剥掉，
+          所以世界没有区块数据。→ 要试第三个参数 = false
+       2. add_world_record 的真实签名是【一个字典】，字典必须含 item_id
+          （[{}] 报 KeyError: 'item_id'；0 参数报至少 2 个；8 个位置参数报最多 3 个）
+       3. 世界记录 = .../storge/stream/resource_management/world_records/<level_id>.json
+          12 个字段；game_type 由模块读 level.dat 自己补
+       4. 记录在启动时读进内存缓存 → 写完必须【重启游戏】才生效
+
+     v6 要验证的 3a 完整链路（全程不需要 root）：
+       ① decompress_map(世界zip, worldsPath/ID, false)   → 世界目录（要保住 db/）
+       ② decompress_map(记录zip, recordsPath,  true)    → 把 <ID>.json 写进记录目录
+       ③ 重启游戏 → 世界出现在列表
+
+     记录目录可以由 worldsPath 推出来：
+        <worldsPath>/../storge/stream/resource_management/world_records
+     ================================================================ -->
+<script>
+(function () {
+  'use strict';
+  if (window.__MCPROBE6__) return;
+  window.__MCPROBE6__ = 1;
+
+  var MAXLINES = 1500;
+  var lines = [];
+  var waiters = {};
+  var state = { send: false, cc: false, sendErr: '', ccErr: '', tagMode: '?' };
+  var elPanel = null, elPre = null, elStat = null, row = null;
+  var WORLDZIP = '/sdcard/Download/mcweb_import.mcworld';
+  var RECZIP = '/sdcard/Download/mcweb_record.zip';
+  var ID = 'mcwebimport';
+
+  function ts() {
+    var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  function trunc(s, n) {
+    s = (typeof s === 'string') ? s : String(s);
+    return s.length > n ? (s.slice(0, n) + ' …(共 ' + s.length + ')') : s;
+  }
+  function add(kind, text) {
+    lines.push('[' + ts() + '][' + kind + '] ' + text);
+    if (lines.length > MAXLINES) lines.splice(0, lines.length - MAXLINES);
+    paint();
+  }
+  function paint() {
+    if (elPre) { elPre.textContent = lines.join('\n'); elPre.scrollTop = elPre.scrollHeight; }
+    if (elStat) {
+      elStat.textContent = 'send=' + state.send + ' cb=' + state.cc + ' tag=' + state.tagMode +
+        (state.sendErr ? ' sendErr=' + state.sendErr : '') + ' 行=' + lines.length;
+    }
+  }
+  function fallbackPanel(e) {
+    try {
+      var d = document.createElement('pre');
+      d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow:auto;' +
+        'background:#2a0000;color:#ff8888;font:11px monospace;z-index:2147483647;margin:0;padding:6px;';
+      d.textContent = 'MCPROBE6 面板失败: ' + (e ? (e.message + '\n' + (e.stack || '')) : '?');
+      (document.body || document.documentElement).appendChild(d);
+    } catch (e2) {}
+  }
+
+  function allocTag(res, rej) {
+    try {
+      var cc = window.ComPyCallback;
+      if (cc && typeof cc.addToTagData === 'function') {
+        var t = cc.addToTagData([res, rej]);
+        if (t !== undefined && t !== null) { state.tagMode = 'addToTagData'; return t; }
+      }
+    } catch (e) {}
+    state.tagMode = 'random';
+    return Math.floor(Math.random() * 4294967296);
+  }
+
+  function hookCC() {
+    var cc = window.ComPyCallback;
+    if (!cc || cc.__mcprobe) { if (cc) state.cc = true; return !!cc; }
+    try {
+      var or = cc.resolve, oe = cc.reject;
+      cc.resolve = function (json, tag) {
+        var s = (typeof json === 'string') ? json : JSON.stringify(json);
+        if (waiters[tag]) {
+          var w = waiters[tag]; delete waiters[tag];
+          add('IN#' + tag, trunc(s, 20000));
+          try { w.res(s); } catch (e) {}
+          return;
+        }
+        add('IN#' + tag, trunc(s, 20000));
+        try { return or ? or.apply(this, arguments) : undefined; } catch (e) {}
+      };
+      cc.reject = function (err, tag) {
+        var s = (typeof err === 'string') ? err : JSON.stringify(err);
+        if (waiters[tag]) {
+          var w = waiters[tag]; delete waiters[tag];
+          add('REJ#' + tag, trunc(s, 4000));
+          try { w.rej(s); } catch (e) {}
+          return;
+        }
+        add('REJ#' + tag, trunc(s, 4000));
+        try { return oe ? oe.apply(this, arguments) : undefined; } catch (e) {}
+      };
+      cc.__mcprobe = 1;
+      state.cc = true;
+    } catch (e) { state.ccErr = e.message || String(e); }
+    return true;
+  }
+  try {
+    var cur = window.ComPyCallback;
+    Object.defineProperty(window, 'ComPyCallback', {
+      configurable: true,
+      get: function () { return cur; },
+      set: function (v) { cur = v; hookCC(); }
+    });
+  } catch (e) {}
+
+  function ret(s) {
+    if (typeof s !== 'string') return s;
+    try { var o = JSON.parse(s); return (o && 'return' in o) ? o.return : o; }
+    catch (e) { return s; }
+  }
+  function rawCall(mod, inst, fn, args) {
+    return new Promise(function (resolve) {
+      if (!window.mc || typeof window.mc.sendMessage !== 'function') {
+        resolve({ ok: false, err: 'window.mc.sendMessage 不存在' }); return;
+      }
+      var done = false;
+      var finish = function (o) { if (done) return; done = true; clearTimeout(to); resolve(o); };
+      var to = setTimeout(function () { finish({ ok: false, err: '超时(3s)' }); }, 3000);
+      var tag = allocTag(
+        function (s) { finish({ ok: true, raw: s, val: ret(s) }); },
+        function (e) { finish({ ok: false, err: (typeof e === 'string' ? e : JSON.stringify(e)) }); }
+      );
+      waiters[tag] = {
+        res: function (s) { finish({ ok: true, raw: s, val: ret(s) }); },
+        rej: function (e) { finish({ ok: false, err: (typeof e === 'string' ? e : JSON.stringify(e)) }); }
+      };
+      window.mc.sendMessage('json:' + JSON.stringify({
+        module_name: mod, func_name: fn, use_instance: !!inst,
+        args: args || [], tag: tag,
+        return_callback: 'ComPyCallback.resolve',
+        exception_callback: 'ComPyCallback.reject'
+      }));
+      add('CALL', mod + '.' + fn + '  args=' + trunc(JSON.stringify(args || []), 400));
+    });
+  }
+
+  /* ---------------- 3a 全链路 ---------------- */
+  function run3a() {
+    ID = (document.getElementById('mcp-id') || {}).value || ID;
+    var worldsPath = null, recordsPath = null;
+    add('3A', '================= 开始 3a 验证 =================');
+    add('3A', 'ID=' + ID + '  世界包=' + WORLDZIP + '  记录包=' + RECZIP);
+
+    rawCall('setting', false, 'get_minecraftWorlds_path').then(function (r) {
+      if (!r.ok) throw new Error('取 worldsPath 失败: ' + r.err);
+      worldsPath = r.val;
+      add('3A', 'worldsPath = ' + worldsPath);
+      recordsPath = worldsPath.replace(/\/minecraftWorlds\/?$/, '/storge/stream/resource_management/world_records');
+      add('3A', 'recordsPath = ' + recordsPath);
+      add('3A', '--- ① 解压世界（第三参数 false，希望保住 db/）---');
+      return rawCall('h5adaptor', false, 'decompress_map', [WORLDZIP, worldsPath + '/' + ID, false]);
+    }).then(function (r) {
+      add('3A', '① 返回 = ' + trunc(r.raw || r.err, 800));
+      add('3A', '--- ② 解压记录包到记录目录 ---');
+      return rawCall('h5adaptor', false, 'decompress_map', [RECZIP, recordsPath, true]);
+    }).then(function (r) {
+      add('3A', '② 返回 = ' + trunc(r.raw || r.err, 800));
+      add('3A', '--- ③ 读记录（注意：内存有缓存，可能还看不到新的）---');
+      return rawCall('resource_management', true, 'get_sorted_world_records');
+    }).then(function (r) {
+      add('3A', '③ 返回 = ' + trunc(r.raw || r.err, 4000));
+      add('3A', '★ 完成。请【重启游戏】后再看列表');
+    }).catch(function (e) {
+      add('3A·FAIL', e.message || String(e));
+    });
+  }
+
+  /* ---------------- 对照实验：true vs false ---------------- */
+  function compareFlat() {
+    var worldsPath = null;
+    add('CMP', '===== 对照：true(压平) vs false(保结构) =====');
+    rawCall('setting', false, 'get_minecraftWorlds_path').then(function (r) {
+      if (!r.ok) throw new Error(r.err);
+      worldsPath = r.val;
+      return rawCall('h5adaptor', false, 'decompress_map', [WORLDZIP, worldsPath + '/cmptrue', true]);
+    }).then(function (r) {
+      add('CMP', 'true  → ' + trunc(r.raw || r.err, 300));
+      return rawCall('h5adaptor', false, 'decompress_map', [WORLDZIP, worldsPath + '/cmpfalse', false]);
+    }).then(function (r) {
+      add('CMP', 'false → ' + trunc(r.raw || r.err, 300));
+      add('CMP', '★ 去文件管理器看 cmptrue/ 和 cmpfalse/ 有没有 db 子目录');
+    }).catch(function (e) { add('CMP·FAIL', e.message || String(e)); });
+  }
+
+  /* ---------------- add_world_record 键名自动探测 ----------------
+     原理：[{}] 会报 KeyError: 'xxx'，把 xxx 补上再调，直到不再报 KeyError。
+     每个键按名字猜一个合理值，全部是只读推断；只有最后成功那次会真的写记录。 */
+  var GUESS = {
+    item_id: function () { return '-100'; },
+    name: function () { return '外部导入'; },
+    icon: function () { return ''; },
+    version: function () { return 0; },
+    second_type: function () { return -1; },
+    path: function () { return (document.getElementById('mcp-id') || {}).value || ID; },
+    level_id: function () { return (document.getElementById('mcp-id') || {}).value || ID; },
+    is_local: function () { return true; },
+    is_copy: function () { return false; },
+    game_type: function () { return 0; },
+    user_ids: function () { return { '': Math.floor(Date.now() / 1000) }; },
+    addons: function () { return {}; },
+    resource_packs: function () { return {}; }
+  };
+  function discoverKeys() {
+    add('KEY', '===== add_world_record 键名自动探测 =====');
+    var info = {};
+    var step = 0;
+    function next() {
+      if (step++ > 12) { add('KEY', '★ 超过 12 轮，停'); return Promise.resolve(); }
+      add('KEY', '--- 第 ' + step + ' 轮：' + JSON.stringify(info));
+      return rawCall('resource_management', true, 'add_world_record', [info]).then(function (r) {
+        if (r.ok) {
+          add('KEY', '★★★ 成功！完整字典 = ' + JSON.stringify(info));
+          add('KEY', '★★★ 返回 = ' + trunc(r.raw, 2000));
+          return null;
+        }
+        var m = /KeyError:\s*'([^']+)'/.exec(r.err || '');
+        if (m) {
+          var k = m[1];
+          if (info.hasOwnProperty(k)) { add('KEY', '★ 键 ' + k + ' 已存在仍报缺，停'); return null; }
+          info[k] = GUESS[k] ? GUESS[k]() : '';
+          add('KEY', '  → 缺少 "' + k + '"，补上后继续');
+          return next();
+        }
+        add('KEY', '  ✗ 非 KeyError 的异常：' + r.err);
+        add('KEY', '  ✗ 当前字典 = ' + JSON.stringify(info));
+        return null;
+      });
+    }
+    return next();
+  }
+
+  /* ---------------- 界面 ---------------- */
+  function val(id) { var e = document.getElementById(id); return e ? e.value : ''; }
+  function copyAll() {
+    var text = lines.join('\n');
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) { add('COPY', '已复制 ' + text.length + ' 字符'); return; }
+    } catch (e) {}
+    rawCall('minecraft', false, 'copyToClipboard', [text]).then(function (r) {
+      add('COPY', r.ok ? '已通过桥接复制' : '复制失败: ' + r.err);
+    });
+  }
+  function mkBtn(parent, txt, fn, bg) {
+    var b = document.createElement('button');
+    b.textContent = txt;
+    b.style.cssText = 'font:12px monospace;padding:2px 7px;margin-left:4px;' +
+      'background:' + (bg || '#333') + ';color:#fff;border:1px solid #888;border-radius:3px;';
+    b.onclick = function (ev) { ev.stopPropagation(); ev.preventDefault(); fn(); };
+    parent.appendChild(b);
+    return b;
+  }
+  function ui() {
+    try { uiReal(); } catch (e) { fallbackPanel(e); }
+  }
+  function uiReal() {
+    if (elPanel) return;
+    elPanel = document.createElement('div');
+    elPanel.setAttribute('id', 'mcprobe-panel');
+    elPanel.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:62%;' +
+      'background:rgba(0,0,0,0.93);color:#00ff66;font:11px/1.35 monospace;' +
+      'z-index:2147483647;display:flex;flex-direction:column;border-top:2px solid #00ff66;';
+
+    var bar = document.createElement('div');
+    bar.style.cssText = 'flex:0 0 auto;padding:4px 6px;background:#111;color:#fff;' +
+      'font:12px monospace;display:flex;align-items:center;flex-wrap:wrap;';
+    var t = document.createElement('b');
+    t.textContent = 'MCPROBE6';
+    t.style.cssText = 'margin-right:6px;color:#00ff66;';
+    bar.appendChild(t);
+    elStat = document.createElement('span');
+    elStat.style.cssText = 'flex:1 1 auto;color:#ffd400;overflow:hidden;white-space:nowrap;' +
+      'text-overflow:ellipsis;margin-right:6px;font-size:11px;';
+    bar.appendChild(elStat);
+    mkBtn(bar, '复制', copyAll);
+    mkBtn(bar, '清空', function () { lines = []; paint(); });
+    mkBtn(bar, '收起', function () {
+      var mini = (elPanel.style.height === '24px');
+      elPanel.style.height = mini ? '62%' : '24px';
+      elPre.style.display = mini ? 'block' : 'none';
+      row.style.display = mini ? 'flex' : 'none';
+    });
+
+    row = document.createElement('div');
+    row.style.cssText = 'flex:0 0 auto;padding:4px 6px;background:#1a1a1a;display:flex;' +
+      'align-items:center;flex-wrap:wrap;';
+    var lab = document.createElement('span');
+    lab.textContent = 'ID:';
+    lab.style.cssText = 'color:#0f0;margin-right:3px;font-size:11px;';
+    row.appendChild(lab);
+    var inp = document.createElement('input');
+    inp.id = 'mcp-id'; inp.value = ID;
+    inp.style.cssText = 'font:11px monospace;padding:2px 4px;margin-right:6px;background:#000;' +
+      'color:#0f0;border:1px solid #555;border-radius:3px;width:120px;';
+    row.appendChild(inp);
+    mkBtn(row, '① 跑 3a 全链路', run3a, '#0a6');
+    mkBtn(row, '对照 true/false', compareFlat, '#06a');
+    mkBtn(row, '探测记录键名', discoverKeys, '#a60');
+    mkBtn(row, '读记录', function () {
+      rawCall('resource_management', true, 'get_sorted_world_records').then(function (r) {
+        add('TEST', r.ok ? ('records=' + trunc(r.raw, 8000)) : ('失败: ' + r.err));
+      });
+    });
+
+    elPre = document.createElement('pre');
+    elPre.style.cssText = 'flex:1 1 auto;margin:0;padding:4px 6px;overflow:auto;' +
+      'white-space:pre-wrap;word-break:break-all;background:transparent;color:#00ff66;';
+    elPanel.appendChild(bar);
+    elPanel.appendChild(row);
+    elPanel.appendChild(elPre);
+    (document.body || document.documentElement).appendChild(elPanel);
+    paint();
+  }
+
+  function boot() {
+    try {
+      ui();
+      add('BOOT', 'UA=' + trunc(navigator.userAgent, 140));
+      var n = 0;
+      var iv = setInterval(function () {
+        n++;
+        hookCC(); paint();
+        if (state.cc || n > 60) {
+          clearInterval(iv);
+          add('BOOT', '钩子就绪 cb=' + state.cc + ' tag=' + state.tagMode + '（轮询 ' + n + '）');
+          // 启动时不自动跑写操作，避免误触；只读一条记录
+          setTimeout(function () {
+            rawCall('resource_management', true, 'get_sorted_world_records').then(function (r) {
+              add('TEST', r.ok ? ('records=' + trunc(r.raw, 6000)) : ('读记录失败: ' + r.err));
+            });
+          }, 900);
+        }
+      }, 200);
+    } catch (e) { fallbackPanel(e); }
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(boot, 300);
+  } else {
+    window.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 300); });
+  }
+})();
+</script>

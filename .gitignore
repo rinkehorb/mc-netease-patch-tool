@@ -1,0 +1,61 @@
+# 构建产物
+build/
+*/build/
+manual-build/
+out/
+
+# 本地工具链（体积很大，不进仓库）
+mc-tool/tools/jdk/
+mc-tool/tools/android-sdk/
+mc-tool/tools/gradle-dist/
+mc-tool/tools/sdk-tmp/
+mc-tool/tools/pt/
+mc-tool/tools/ptx/
+mc-tool/tools/px/
+mc-tool/tools/bt/
+mc-tool/tools/*.zip
+mc-tool/tools/jtmp/
+mc-tool/tools/debug.keystore
+
+# 构建/测试临时目录
+.gradle/
+.gradle-home/
+.m2repo/
+.robohome/
+gtmp/
+local.properties
+
+# 工具自己的签名身份（请自行生成，见 app/keystore/README.md）
+mc-tool/app/keystore/*.jks
+mc-tool/app/keystore/*.keystore
+
+# 签名密钥：真用的那两个【绝不进仓库】，仓库里只留 *.example 的公用示例密钥
+# （生成方式见 mc-tool/app/src/main/assets/README.md）
+mc-tool/app/src/main/assets/mc-patch-key.pk8
+mc-tool/app/src/main/assets/mc-patch-cert.pem
+
+# genkey 脚本的临时目录
+mc-tool/.genkey-tmp/
+
+# 游戏版权物 / 大文件（这些是你本地的东西，不该进仓库）
+*.apk
+!dist/*.apk
+*.dex
+*.so
+smali/
+*.idsig
+
+# 逆向过程的中间产物
+manifest_decoded*/
+manifest_dump/
+compare_*/
+v3_assets/
+v4_assets/
+tmp_sign*/
+
+# IDE / 系统
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db

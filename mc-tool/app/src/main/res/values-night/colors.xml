@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 体检结果提示文字的颜色（深色底，用更亮的同色系保证对比度） -->
+<resources>
+    <color name="src_ok">#81C784</color>
+    <color name="src_warn">#FFB74D</color>
+    <color name="src_bad">#EF9A9A</color>
+</resources>
