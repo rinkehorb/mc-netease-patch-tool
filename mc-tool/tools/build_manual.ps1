@@ -70,8 +70,8 @@ Write-Host '== 3/6 aapt2 link（生成资源表 + R.java + 打进 assets）==' -
     --rename-manifest-package $Pkg `
     --min-sdk-version 26 `
     --target-sdk-version 34 `
-    --version-code 1 `
-    --version-name 1.0 `
+    --version-code 261010 `
+    --version-name 26.10.10 `
     "$Bld\res.zip"
 if ($LASTEXITCODE -ne 0) { throw 'aapt2 link 失败' }
 

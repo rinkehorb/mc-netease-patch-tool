@@ -23,9 +23,9 @@ out/
 fixtures/*.apk
 
 # 签名密钥：真用的那两个绝不进仓库，只留 *.example（见 app/src/main/assets/README.md）
-app/src/main/assets/mc-patch-key.pk8
-app/src/main/assets/mc-patch-cert.pem
-.genkey-tmp/
+# app/src/main/assets/mc-patch-key.pk8
+   # ← 本仓库刻意包含密钥，见根 README# app/src/main/assets/mc-patch-cert.pem
+   # ← 本仓库刻意包含密钥，见根 README.genkey-tmp/
 
 # IDE
 .idea/

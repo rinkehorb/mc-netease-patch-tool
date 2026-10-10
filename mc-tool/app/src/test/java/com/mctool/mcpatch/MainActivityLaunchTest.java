@@ -122,8 +122,11 @@ public class MainActivityLaunchTest {
             assertTrue("用公开示例密钥时必须告警，实际:\n" + log, log.contains("示例密钥"));
             assertTrue("界面上也应告警，实际: " + sign, sign.contains("示例密钥"));
         } else {
-            assertTrue("用自己的密钥且与改包同签名时，应提示可直接覆盖安装，实际:\n" + log,
-                    log.contains("可直接覆盖安装") || log.contains("签名不同"));
+            // 同签名这种情况【不再打日志】了（界面第 1 节的体检区已经用绿字写清
+            // 「签名：与内置密钥一致 ✅ 可直接覆盖安装」，日志里再来一遍是重复）。
+            // 所以这里只验证"不该出现的告警没有出现"。
+            assertTrue("用自己的密钥且与改包同签名时，不应出现任何告警，实际:\n" + log,
+                    !log.contains("示例密钥") && !log.contains("没有找到签名密钥"));
         }
 
         // 解析路径本身必须没问题：PKCS#8 + X.509（不是 KeyStore）。
@@ -159,7 +162,8 @@ public class MainActivityLaunchTest {
         assertTrue("选资源包按钮应始终可用", a.findViewById(R.id.btnPickPack).isEnabled());
 
         assertTrue("默认应选中细手臂", ((RadioButton) a.findViewById(R.id.rbSlim)).isChecked());
-        assertTrue("「生成后自动另存」默认应打开", cbAuto.isChecked());
+        assertTrue("「生成后自动另存」默认应关闭（Download 里已有给游戏读的 .png，免得混淆）",
+                !cbAuto.isChecked());
         assertTrue("生成按钮初始应可用", a.findViewById(R.id.btnGenerate).isEnabled());
         assertTrue("安装按钮初始应禁用", !a.findViewById(R.id.btnInstall).isEnabled());
         assertTrue("复制日志按钮应始终可用", a.findViewById(R.id.btnCopyLog).isEnabled());

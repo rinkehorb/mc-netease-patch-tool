@@ -25,14 +25,15 @@ mc-tool/tools/debug.keystore
 gtmp/
 local.properties
 
-# 工具自己的签名身份（请自行生成，见 app/keystore/README.md）
-mc-tool/app/keystore/*.jks
-mc-tool/app/keystore/*.keystore
-
-# 签名密钥：真用的那两个【绝不进仓库】，仓库里只留 *.example 的公用示例密钥
-# （生成方式见 mc-tool/app/src/main/assets/README.md）
-mc-tool/app/src/main/assets/mc-patch-key.pk8
-mc-tool/app/src/main/assets/mc-patch-cert.pem
+# 签名身份与密钥：本仓库【刻意包含】它们。
+# 原因：这把密钥直接来自网易《我的世界》安装包，属【公开性质】——
+# 任何人解包游戏 APK 都能提取出来，它不是只有作者知道的秘密。
+# 保留在仓库里是为了让别人 clone 下来就能构建出【能覆盖安装】的包。
+# ⚠️ 仅供个人自用；不要用它签任何要公开发布的东西。详见 README。
+# 想用自己密钥的：删掉下面两行注释即可恢复忽略，再跑 tools/genkey.ps1。
+# mc-tool/app/keystore/*.jks
+# mc-tool/app/src/main/assets/mc-patch-key.pk8
+# mc-tool/app/src/main/assets/mc-patch-cert.pem
 
 # genkey 脚本的临时目录
 mc-tool/.genkey-tmp/

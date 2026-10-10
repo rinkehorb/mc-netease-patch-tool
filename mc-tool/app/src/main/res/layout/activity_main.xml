@@ -7,6 +7,8 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
         android:orientation="vertical"
         android:padding="14dp">
 
@@ -18,10 +20,23 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
+        <TextView
+            android:id="@+id/tvVersion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="4dp"
+            android:text="@string/version_label"
+            android:textSize="11sp" />
+
+        <TextView style="@style/Note" android:text="@string/usage_note" />
+
         <!-- ================= 1. 源 APK ================= -->
         <TextView style="@style/Section" android:text="@string/sec_src" />
 
+        <TextView style="@style/Note" android:text="@string/src_note" />
+
         <Button
+            android:textAllCaps="false"
             android:id="@+id/btnPickApk"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -71,6 +86,7 @@
                 android:maxLines="1" />
 
             <Button
+            android:textAllCaps="false"
                 android:id="@+id/btnClearName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -97,6 +113,7 @@
             android:orientation="horizontal">
 
             <Button
+            android:textAllCaps="false"
                 android:id="@+id/btnPickSkin"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -143,6 +160,11 @@
 
         <TextView style="@style/Note" android:text="@string/skin_note" />
 
+        <TextView
+            android:id="@+id/tvSkinWarn"
+            style="@style/Warning"
+            android:text="@string/skin_reinstall_warn" />
+
         <!-- ================= 4. 资源包 ================= -->
         <TextView style="@style/Section" android:text="@string/sec_pack" />
 
@@ -159,6 +181,7 @@
             android:orientation="horizontal">
 
             <Button
+            android:textAllCaps="false"
                 android:id="@+id/btnPickPack"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -166,6 +189,7 @@
                 android:text="@string/pick_pack" />
 
             <Button
+            android:textAllCaps="false"
                 android:id="@+id/btnClearPack"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -195,7 +219,10 @@
             android:text="@string/sign_ok" />
 
         <!-- ================= 生成 ================= -->
+        <TextView style="@style/Section" android:text="@string/sec_generate" />
+
         <Button
+            android:textAllCaps="false"
             android:id="@+id/btnGenerate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -207,7 +234,7 @@
             android:id="@+id/cbAutoExport"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:checked="true"
+            android:checked="false"
             android:text="@string/auto_export" />
 
         <ProgressBar
@@ -216,7 +243,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:max="1000" />
+            android:max="1000"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/tvStatus"
@@ -226,24 +254,31 @@
             android:textSize="13sp" />
 
         <Button
+            android:textAllCaps="false"
             android:id="@+id/btnInstall"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:enabled="false"
             android:text="@string/install_now" />
 
-        <Button
-            android:id="@+id/btnCopyLog"
+
+        <!-- ================= 5. 导入存档（可折叠） ================= -->
+        <TextView
+            android:id="@+id/hdrImport"
+            style="@style/Section"
+            android:text="@string/sec_import" />
+
+        <LinearLayout
+            android:id="@+id/boxImport"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/copy_log" />
-
-        <!-- ================= 5. 导入存档（与改包无关） ================= -->
-        <TextView style="@style/Section" android:text="@string/sec_import" />
+            android:orientation="vertical"
+            android:visibility="gone">
 
         <TextView style="@style/Note" android:text="@string/import_note" />
 
         <Button
+            android:textAllCaps="false"
             android:id="@+id/btnPickImport"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -266,11 +301,86 @@
             android:textSize="13sp" />
 
         <Button
+            android:textAllCaps="false"
             android:id="@+id/btnDoImport"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:enabled="false"
             android:text="@string/do_import" />
+        </LinearLayout>
+
+        <!-- ================= 6. 手臂粗细（免 root，可折叠） ================= -->
+        <TextView
+            android:id="@+id/hdrArm"
+            style="@style/Section"
+            android:text="@string/sec_arm" />
+
+        <LinearLayout
+            android:id="@+id/boxArm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+        <TextView style="@style/Note" android:text="@string/arm_note" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+            android:textAllCaps="false"
+                android:id="@+id/btnArm3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/arm_3px" />
+
+            <Button
+            android:textAllCaps="false"
+                android:id="@+id/btnArm4"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/arm_4px" />
+        </LinearLayout>
+
+        <TextView style="@style/Warning" android:text="@string/arm_warn" />
+        </LinearLayout>
+
+        <!-- ================= 日志（可折叠） ================= -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/hdrLog"
+                style="@style/Section"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="@string/sec_log" />
+
+            <Button
+                android:id="@+id/btnCopyLog"
+                android:textAllCaps="false"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="0dp"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:text="@string/copy_log"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/boxLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
 
         <TextView
             android:id="@+id/tvLog"
@@ -279,6 +389,7 @@
             android:layout_marginTop="8dp"
             android:fontFamily="monospace"
             android:textSize="11sp" />
+        </LinearLayout>
 
         <!-- 作者署名 -->
         <View

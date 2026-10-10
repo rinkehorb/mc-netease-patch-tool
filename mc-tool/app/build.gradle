@@ -10,8 +10,8 @@ android {
         applicationId "com.mctool.mcpatch"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 261010
+        versionName "26.10.10"
     }
 
     // 刻意用工程自带的密钥库，不用 AGP 自动生成的 debug 密钥：

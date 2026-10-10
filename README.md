@@ -35,6 +35,7 @@
 
 ```
 工具：选 .mcworld → 体检版本 → 需要时自动降级 → 拆包写进 Download/
+      （登记成图片 .png —— 见下面「打包成 .png」那条，这一步很反直觉但必须）
 游戏：点「导入世界」→ 重启游戏 → 世界出现在列表，点启动正常进入
 ```
 
@@ -50,15 +51,25 @@
 1. 工具**不动游戏本身**，它是在**你本地的 APK 文件**上做修改，产出新文件。
 2. **你必须自己准备一份原版 APK 文件**。工具没法从"已安装的应用"里提取它
    （Android 11+ 不允许应用读别人的 APK）。
-3. 改出来的包**签名和官方不同**，所以装它之前**必须卸载官方版** ——
-   而**卸载会连 `Android/data/` 一起删掉，你的存档就全没了**。
+3. 工具产出的包**与官方同签名**，可以直接**覆盖安装** —— 不用卸载、不丢存档 ✔
+   只有在你换了签名密钥、或系统提示签名不一致时才需要卸载，
+   而**卸载会连 `Android/data/` 一起删掉，你的存档就全没了** ✗。
 
 ### 1. ⚠️ 备份你的世界（**最重要的一步，别跳**）
 
-游戏里 → 世界列表 → 每个世界右边的**齿轮/菜单** → **导出世界** → 存到 Download。
+⚠️ **这版游戏没有「导出世界」菜单**（齿轮只打开「世界设置」，实测确认）✗，
+备份只能走下面两条路（都不需要 root ✔）：
 
-**非 root 用户这是唯一可行的备份途径**（`Android/data/` 没有 root 读不到）。
-每个想保留的世界都要导一遍。导出的 `.mcworld` 第 5 步会导回来。
+* **Shizuku + MT管理器**（推荐）：用「无线调试」激活 Shizuku →
+  MT管理器开 Shizuku 模式 → 进 `Android/data/com.netease.mc.qihoo/` 整个复制出来（约 10 MB）
+* **电脑 adb**：先在手机上打包再拉 ——
+  `adb shell "cd /sdcard/Android/data/com.netease.mc.qihoo/files/games && tar czf /sdcard/b.tgz com.netease"`
+  然后 `adb pull /sdcard/b.tgz`（⚠️ 直接 pull 目录会静默失败，必须先 tar）
+
+要备份的核心是 `.../files/games/com.netease/minecraftWorlds/`（世界本体）
+和 `.../storge/stream/resource_management/world_records/`（世界记录，列表靠它）。
+
+> 从备份还原时：把世界目录**打成 zip**，用工具第 5 步导入回去 ✔
 
 > 血泪教训：卸载重装会**静默清空** `Android/data/com.netease.mc.qihoo/`，
 > 包括 `games/com.netease/minecraftWorlds/` 和世界记录。这是真的丢过存档的地方。
@@ -89,9 +100,9 @@ powershell -ExecutionPolicy Bypass -File mc-tool\tools\genkey.ps1
 
 ### 4. 装工具、改包
 
-1. 装 `MCPatchTool-v1.0.apk`（见 [dist/](dist/) 或 Releases）
+1. 装 `dist/MCPatchTool-v26.10.10-1010-1848.apk`（见 [dist/](dist/) 或 Releases）
 2. 选源 APK → 勾「改名」/「换皮肤」/「加资源包」→ 一键生成
-3. **卸载手机上的官方版**（第 1 步已经导出世界了，放心）
+3. **直接覆盖安装**（同签名 ✔ 不用卸载 ✔ 不丢存档 ✔）
 4. 安装刚生成的 APK，打开
 
 > 生成界面里应该能看到提示：与你的改包同签名 → 可直接覆盖安装；
@@ -99,7 +110,8 @@ powershell -ExecutionPolicy Bypass -File mc-tool\tools\genkey.ps1
 
 ### 5. 把世界导回来
 
-1. 工具里选你导出的 `.mcworld` → **「准备导入」** → 它把几个包写进 `Download/`
+1. 工具里选一个 `.mcworld` 存档 → **「准备导入」** → 它把几个包**登记成图片（`.png`）**
+   写进 `Download/`
 2. 打开游戏 → 点左下角 **「导入世界」** → 看到"导入完成"
 3. **完全退出游戏，再重新打开**（世界记录是启动时读进内存的）
 4. 世界出现在列表里，点「启动」进去
@@ -127,6 +139,19 @@ powershell -ExecutionPolicy Bypass -File mc-tool\tools\genkey.ps1
 `db/` 没进去。本工具的拆包逻辑已经处理了（**按顶层目录分组**，因为那个接口会把目录压平），
 手工操作才会踩到 —— 见 9.2 节。
 
+**Q：导入时报 `[Errno 13] Permission denied`？**
+你用的是**旧版工具**。Android 11+ 有一条反直觉的规则：**别的 App 创建的非媒体文件
+（`.zip` / `.json` / `.txt`）任何位置、任何权限都读不到** —— 实测过 `Download/`、
+`Android/media/<包名>/` 全都 EACCES，而且那个游戏 `READ_EXTERNAL_STORAGE` 已授予、
+`targetSdk` 才 22，**根本不是权限问题**。
+
+解法是**把包伪装成媒体文件**：用 MediaStore 登记成图片（后缀 `.png`、MIME `image/png`），
+媒体文件是允许别按路径读的。文件内容仍是标准 zip，`decompress_map` 不看后缀。
+1.0 之后的版本已经这么做了。完整分析见 [`mc-tool/README.md`](mc-tool/README.md) 9.3.1 节。
+
+**Q：那 `Android/media/<包名>/` 到底行不行？**
+**分系统版本**：Android 13 上实测可以，Android 15 上不行。所以最终方案是 `.png` 那条路。
+
 **Q：游戏更新了还能用吗？**
 改包是按版本做的，新版本请重新走一遍流程。注意新版本的 `lastOpenedWithVersion` /
 `StorageVersion` 等能力值可能变了，导入功能的降级目标值需要相应更新（9.4 节有怎么读出来）。
@@ -145,7 +170,7 @@ mc-tool/          工具本体（Android App + 纯 Java 核心）
         LevelDat            level.dat 的版本字段读写（原地改字节）
         WorldImportPrep     世界体检/降级/按顶层目录拆包
       MainActivity.java     界面
-      DownloadWriter        写公共 Download（MediaStore，无需权限）
+      ShareWriter           把包登记成图片写进 Download（跨 App 可读的关键）
   app/src/main/assets/mc-import.js   注入到游戏 H5 的导入界面
   app/src/main/assets/README.md      ★ 签名密钥怎么来（第一次构建前先看这个）
   tools/genkey.ps1 / genkey.sh       ★ 生成你自己的签名密钥
@@ -200,3 +225,16 @@ powershell -File mc-tool\tools\build_manual.ps1
 ## 许可
 
 MIT，见 [LICENSE](LICENSE)。`mc-tool/tools/lib/apksig-8.7.3.jar` 是 Google 的作品，Apache-2.0。
+---
+
+## ⚠️ 关于本仓库内置的签名密钥
+
+本仓库**包含**用于给改包签名的密钥（mc-tool/app/src/main/assets/mc-patch-*.pk8/pem
+与 mc-tool/app/keystore/mc-patch.jks）。
+
+这把密钥**直接取自网易《我的世界》的安装包**，属**公开性质** ——
+任何人解包游戏 APK 都能提取出来，**它不是只有作者知道的秘密**。
+把它留在仓库里，是为了让别人 clone 下来就能构建出**能覆盖安装的包**。
+
+> ⚠️ **仅供个人自用。** 不要用它签任何要公开发布的东西；
+> 想换成自己的密钥：跑 mc-tool/tools/genkey.ps1，并在 .gitignore 里取消相应注释。

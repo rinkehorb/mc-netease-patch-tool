@@ -302,4 +302,35 @@ public class WorldImportTest {
         assertTrue(s.contains("var a=1;"));
         assertTrue(s.startsWith("<div>x</div>"));
     }
+
+    /**
+     * 源包里已经带着<b>旧版</b>导入脚本时，必须把它换成新的 —— 不能跳过。
+     *
+     * <p>真机上踩过：用户拿一个以前改过的包当源包，工具"看到标记就跳过"，
+     * 于是产出包继续带旧脚本（找 {@code Download/*.zip}），而新工具写的是 {@code .png}，
+     * 游戏里就一直是"没有找到待导入的包"。
+     */
+    @Test
+    public void injectReplacesOlderImportScript() {
+        String oldJs = "(function(){ window.__MCIMPORT__=1; var OLD='找 .zip 的旧版'; })();";
+        String newJs = "(function(){ window.__MCIMPORT__=1; var CANDS='找 .png 的新版'; })();";
+        String html = "<html><body><div id=app></div></body></html>";
+
+        // 先注入"旧版"
+        byte[] v1 = ApkPatcher.injectImportUi(html.getBytes(StandardCharsets.UTF_8),
+                oldJs.getBytes(StandardCharsets.UTF_8));
+        assertTrue(new String(v1, StandardCharsets.UTF_8).contains("旧版"));
+
+        // 再用"新版"打一遍：旧脚本必须被摘掉
+        byte[] v2 = ApkPatcher.injectImportUi(v1, newJs.getBytes(StandardCharsets.UTF_8));
+        String s2 = new String(v2, StandardCharsets.UTF_8);
+        assertTrue("新版脚本应在", s2.contains("找 .png 的新版"));
+        assertFalse("旧版脚本必须被摘掉，否则游戏会一直找 .zip", s2.contains("找 .zip 的旧版"));
+        assertEquals("只应有一个 script 块", 1, s2.split("<script", -1).length - 1);
+        assertTrue("原有内容要保留", s2.contains("<div id=app></div>"));
+
+        // 同一版再打一次 → 不变化，返回原引用
+        assertSame("内容一致时应原样返回", v2,
+                ApkPatcher.injectImportUi(v2, newJs.getBytes(StandardCharsets.UTF_8)));
+    }
 }

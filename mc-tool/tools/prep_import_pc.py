@@ -12,7 +12,12 @@ import zipfile, struct, os, sys, io, json
 
 SRC = r"C:\Users\Administrator\DoubaoWork\chats\LogicGates.zip"
 OUT = r"C:\Users\Administrator\Documents\deepseek-harness\default-workspace\import_out"
-SLOT = "mcw1"
+# 槽位号：命令行第一个参数，默认 1。包名用数字（mcweb_3_*.zip），
+# 世界目录名与记录里的 level_id 用 "mcw<槽位>" —— 必须和 mc-import.js 的约定一致。
+SLOT_NO = sys.argv[1] if len(sys.argv) > 1 else "1"
+SLOT = "mcw" + SLOT_NO
+if len(sys.argv) > 2:
+    SRC = sys.argv[2]
 TARGET_VER = [1, 1, 3, 50]
 TARGET_STORAGE = 5
 TARGET_NETWORK = 113
@@ -137,7 +142,7 @@ def main():
     for top in order:
         g = groups.get(top) or {}
         if not g: continue
-        path = os.path.join(OUT, "mcweb_%s_%s.zip" % (SLOT, top))
+        path = os.path.join(OUT, "mcweb_%s_%s.zip" % (SLOT_NO, top))
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zo:
             for name, data in g.items():
                 zo.writestr(name, data)
@@ -146,11 +151,11 @@ def main():
 
     # 4) 世界记录
     rec = {"second_type": -1, "is_local": True, "is_copy": False,
-           "name": "外部导入(降级测试)", "level_id": SLOT, "resource_packs": {},
+           "name": "A/B测试(槽位%s)" % SLOT_NO, "level_id": SLOT, "resource_packs": {},
            "user_ids": {"": 1791539226}, "version": 0, "item_id": "-100",
            "path": SLOT, "addons": {}, "icon": ""}
     s = json.dumps(rec, ensure_ascii=True)
-    recpath = os.path.join(OUT, "mcweb_%s_record.zip" % SLOT)
+    recpath = os.path.join(OUT, "mcweb_%s_record.zip" % SLOT_NO)
     with zipfile.ZipFile(recpath, "w", zipfile.ZIP_DEFLATED) as zo:
         zo.writestr(SLOT + ".json", s)
     print("  记录: %s   内容: %s" % (os.path.basename(recpath), s))

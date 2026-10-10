@@ -279,19 +279,48 @@ public final class ApkPatcher {
      * 实测这个位置可行：游戏启动时会把 {@code assets/web/} 整个解压到数据目录的
      * {@code web/} 下再从那里加载，所以改 APK 里的这份就够。
      *
-     * <p><b>幂等</b>：已经含 {@link #IMPORT_MARK} 就原样返回（同一个 {@code byte[]} 引用，
-     * 调用方可以据此判断有没有发生变化）。
+     * <p><b>会先摘掉旧的再插新的</b>（不是"看到标记就跳过"）。
+     * 这一点很重要：源 APK 可能是<b>别人以前改过的包</b>，里面已经带着旧版导入脚本，
+     * 如果这里跳过，产出包就会继续带旧脚本 —— 而新工具写的是 {@code .png}、
+     * 旧脚本找的是 {@code .zip}，结果就是游戏里一直报"没有找到待导入的包"。
+     * （真机上就这么踩过一次，排查了半天。）
+     *
+     * @return 新的 HTML；和原来完全一样（说明本来就是这个版本）时返回<b>同一个数组引用</b>
      */
     public static byte[] injectImportUi(byte[] html, byte[] js) {
-        String s = new String(html, java.nio.charset.StandardCharsets.UTF_8);
-        if (s.contains(IMPORT_MARK)) return html;
+        String original = new String(html, java.nio.charset.StandardCharsets.UTF_8);
+        String s = stripImportUi(original);
         int idx = s.lastIndexOf("</body>");
         if (idx < 0) idx = s.lastIndexOf("</html>");
         if (idx < 0) idx = s.length();
         String block = "\n<script>\n" + new String(js, java.nio.charset.StandardCharsets.UTF_8)
                 + "\n</script>\n";
         String out = s.substring(0, idx) + block + s.substring(idx);
+        if (out.equals(original)) return html;
         return out.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 把已经注入过的导入界面脚本摘掉（连同它前后的换行）。
+     * 没注入过就原样返回。用标记定位，不要求 HTML 结构规范。
+     */
+    static String stripImportUi(String s) {
+        int mark = s.indexOf(IMPORT_MARK);
+        int guard = 0;
+        while (mark >= 0 && guard++ < 10) {
+            int open = s.lastIndexOf("<script", mark);
+            int close = s.indexOf("</script>", mark);
+            if (open < 0 || close < 0) break;
+            close += "</script>".length();
+            int a = open, b = close;
+            // 前后各自的换行都要吃掉，否则"摘掉再插回去"会多出/少掉一个换行，
+            // 同一个版本重复注入就不再是幂等的（单元测试抓过这个）。
+            while (a > 0 && (s.charAt(a - 1) == '\n' || s.charAt(a - 1) == '\r')) a--;
+            while (b < s.length() && (s.charAt(b) == '\n' || s.charAt(b) == '\r')) b++;
+            s = s.substring(0, a) + s.substring(b);
+            mark = s.indexOf(IMPORT_MARK);
+        }
+        return s;
     }
 
     private static boolean isOldSignature(String name) {

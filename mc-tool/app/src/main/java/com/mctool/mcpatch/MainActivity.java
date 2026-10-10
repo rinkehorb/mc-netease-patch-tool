@@ -151,6 +151,8 @@ public class MainActivity extends Activity {
 
     private SharedPreferences prefs;
     private final StringBuilder logBuf = new StringBuilder();
+    /** 是否正在跑任务。用来决定日志区要不要自动展开（启动时不展开）。 */
+    private volatile boolean taskRunning = false;
 
     // ================================================================== 生命周期
 
@@ -198,10 +200,8 @@ public class MainActivity extends Activity {
         wireListeners();
         applyEnabledStates();
 
-        log("就绪。这个工具不联网，全部在本机完成。");
         checkSigner();
         if (apkUri != null) {
-            log("恢复上次选择的源 APK: " + apkName);
             startPrepare();
         }
     }
@@ -322,6 +322,89 @@ public class MainActivity extends Activity {
         // 导入存档（独立功能，不依赖源 APK）
         findViewById(R.id.btnPickImport).setOnClickListener(v -> pick(REQ_IMPORT, "*/*", false));
         findViewById(R.id.btnDoImport).setOnClickListener(v -> startImport());
+
+        // 换手臂粗细（免 root）：把改好的 options.txt 写成 Download 里的 .png，
+        // 游戏启动时由注入的 H5 脚本 decompress_map 写进游戏私有目录。
+        findViewById(R.id.btnArm3).setOnClickListener(v -> startArmSwitch(true));
+        findViewById(R.id.btnArm4).setOnClickListener(v -> startArmSwitch(false));
+
+        // 折叠区：5 导入 / 6 换手臂 / 日志。默认都收起 —— 这个页面说明文字多，
+        // 全展开要滚很久（用户反馈过"太长了"）。
+        accordion(R.id.hdrImport, R.id.boxImport, false);
+        accordion(R.id.hdrArm, R.id.boxArm, false);
+        accordion(R.id.hdrLog, R.id.boxLog, false);
+    }
+
+    /**
+     * 把「标题 + 内容块」做成可折叠：点标题切换显示，标题前用 ▾/▸ 表示状态。
+     *
+     * <p>纯 XML 没有折叠控件，这里用「标题点击 → 切换内容块 visibility」实现，
+     * 不引入任何库。标题原文里不带箭头，所以箭头是加在前面的。
+     */
+    private void accordion(int headerId, int boxId, boolean openByDefault) {
+        final TextView h = findViewById(headerId);
+        final View box = findViewById(boxId);
+        final String base = h.getText().toString().replaceFirst("^[▾▸]\\s*", "");
+        final boolean[] open = {openByDefault};
+        box.setVisibility(openByDefault ? View.VISIBLE : View.GONE);
+        h.setText((openByDefault ? "▾ " : "▸ ") + base);
+        h.setOnClickListener(v -> {
+            open[0] = !open[0];
+            box.setVisibility(open[0] ? View.VISIBLE : View.GONE);
+            h.setText((open[0] ? "▾ " : "▸ ") + base);
+        });
+    }
+
+    /** 有日志输出时把日志区自动展开，否则用户以为什么都没发生。 */
+    private void openLogBox() {
+        View box = findViewById(R.id.boxLog);
+        if (box.getVisibility() != View.VISIBLE) {
+            box.setVisibility(View.VISIBLE);
+            TextView h = findViewById(R.id.hdrLog);
+            h.setText("▾ " + h.getText().toString().replaceFirst("^[▾▸]\\s*", ""));
+        }
+    }
+
+    /**
+     * 「换手臂粗细（不用 root）」。
+     *
+     * <p>手臂体型存在游戏私有目录的 {@code options.txt} 里（{@code game_skintypefull}），
+     * 普通应用碰不到；但游戏里的 H5 有 {@code decompress_map}，能以<b>游戏身份</b>写进去。
+     * 这里只负责把「改好的 options.txt」打成包、放到游戏读得到的地方；
+     * 真正落盘由游戏启动时注入的 {@code mc-import.js} 完成。
+     *
+     * @param slim true = 3px 细手臂（Alex），false = 4px 粗手臂（Steve）
+     */
+    private void startArmSwitch(boolean slim) {
+        final String base = ArmSwitch.baseName(slim);
+        new Thread(() -> {
+            try {
+                stage("准备手臂切换包…");
+                log("=== 换手臂粗细：" + ArmSwitch.label(slim) + " ===");
+                byte[] zip = ArmSwitch.buildZip(this, slim);
+                // 保证同一时刻只有一个手臂包：先把另一个删掉。
+                // 否则两个文件同时存在时，游戏先找到哪个就用哪个，后点的那个等于白点。
+                ShareWriter.delete(this, ArmSwitch.baseName(!slim));
+                log("  模板 " + ArmSwitch.assetName(slim) + " → " + ArmSwitch.armLine(this, slim));
+                File f = ShareWriter.write(this, base, zip);
+                log("  已写入 " + f.getName() + "  (" + fmt(zip.length) + ")");
+                log("  位置：" + ShareWriter.dirDesc());
+                log("  游戏侧会写进：" + ArmSwitch.DEST_DIR);
+                log("");
+                log("接下来：");
+                log("  ① 打开游戏（左下角会提示已写入手臂配置）");
+                log("  ② 完全关掉游戏（切后台 / 划掉都行）");
+                log("  ③ 重新打开 —— 手臂就是 " + (slim ? "3px 细（Alex）" : "4px 粗（Steve）"));
+                log("⚠️ 会重置游戏设置；改完直接关掉游戏，别在运行时覆盖安装");
+                final File out = f;
+                ui.post(() -> tvStatus.setText("手臂包已就绪：" + out.getName()
+                        + "\n打开游戏 → 完全关掉 → 重开"));
+            } catch (Throwable e) {
+                final String m = e.getMessage() == null ? e.toString() : e.getMessage();
+                log("失败：" + m);
+                ui.post(() -> tvStatus.setText("准备失败：" + m));
+            }
+        }, "mc-arm").start();
     }
 
     private void applyEnabledStates() {
@@ -357,7 +440,7 @@ public class MainActivity extends Activity {
         cbRename.setChecked(prefs.getBoolean("cb_rename", false));
         cbSkin.setChecked(prefs.getBoolean("cb_skin", false));
         cbPack.setChecked(prefs.getBoolean("cb_pack", false));
-        cbAutoExport.setChecked(prefs.getBoolean("auto_export", true));
+        cbAutoExport.setChecked(prefs.getBoolean("auto_export", false));
         cbDowngrade.setChecked(prefs.getBoolean("downgrade", true));
         if (prefs.getBoolean("slim", true)) rbSlim.setChecked(true);
         else rbClassic.setChecked(true);
@@ -446,7 +529,7 @@ public class MainActivity extends Activity {
         try {
             startActivityForResult(i, req);
         } catch (Exception e) {
-            toast("打不开文件选择器: " + e.getMessage());
+            toast("打不开文件选择器：" + e.getMessage());
         }
     }
 
@@ -501,7 +584,7 @@ public class MainActivity extends Activity {
             importName = displayName(importUri);
             tvImport.setText(importName + "\n" + fmt(sizeOf(importUri)));
             findViewById(R.id.btnDoImport).setEnabled(true);
-            log("待导入存档: " + importName + " (" + fmt(sizeOf(importUri)) + ")");
+            log("待导入存档：" + importName + " (" + fmt(sizeOf(importUri)) + ")");
             return;
         }
 
@@ -512,7 +595,7 @@ public class MainActivity extends Activity {
             copiedInput = null;       // 换了包，缓存作废
             lastCopiedFrom = null;
             tvApk.setText(apkName + "\n" + fmt(apkSize));
-            log("源 APK: " + apkName + " (" + fmt(apkSize) + ")");
+            log("源 APK：" + apkName + " (" + fmt(apkSize) + ")");
             if (apkSize > 0 && apkSize < 40L * 1024 * 1024) {
                 toast("这个文件只有 " + fmt(apkSize) + "，看起来不像《我的世界》的包");
             }
@@ -533,7 +616,7 @@ public class MainActivity extends Activity {
                 } finally {
                     os.close();
                 }
-                log("皮肤: " + skinLabel + " " + sz[0] + "x" + sz[1]);
+                log("皮肤：" + skinLabel + " " + sz[0] + "x" + sz[1]);
                 saveState();
             } catch (Exception e) {
                 skinPng = null;
@@ -632,7 +715,7 @@ public class MainActivity extends Activity {
             if (seq != prepareSeq) return;
             ui.post(() -> showSourceInfo(getString(R.string.src_prepare_failed, msg),
                     getColor(R.color.src_bad)));
-            log("源包体检失败: " + msg);
+            log("源 APK 体检失败：" + msg);
         } finally {
             if (seq == prepareSeq) ui.post(() -> tvStatus.setText(""));
         }
@@ -739,12 +822,12 @@ public class MainActivity extends Activity {
         int color = getColor(level == 0 ? R.color.src_ok
                 : level == 1 ? R.color.src_warn : R.color.src_bad);
         showSourceInfo(sb.toString(), color);
-        log("源包体检：包名=" + si.pkg + " 版本=" + si.versionName
-                + " 签名=" + (signerSha == null ? "未知" : signerSha.substring(0, 16) + "…"
+        log("源 APK 体检：\n  包名 " + si.pkg + "\n  版本 " + si.versionName
+                + "\n  签名 " + (signerSha == null ? "未知" : signerSha.substring(0, 16) + "…"
                 + (si.signer.verified ? "(校验通过)" : "(校验未通过)"))
                 + " skindefs=" + si.hasSkindefs + " lang=" + si.langCount);
         if (si.signer != null && si.signer.error != null) {
-            log("签名解析提示: " + si.signer.error);
+            log("签名解析提示：" + si.signer.error);
         }
     }
 
@@ -869,6 +952,13 @@ public class MainActivity extends Activity {
             // 否则用户拿到的改包里没有这个入口，导入功能就用不了。
             spec.importScript = loadImportScript();
 
+            // 换皮肤/改手臂这条最容易白忙一场，先把话说清楚（见 README 2.2.1）。
+            if (doSkin) {
+                log("换皮肤：覆盖安装即可，贴图会变 ✔");
+                log("手臂粗细：覆盖安装不会变，用第 6 节换（不用卸载）");
+                log("⚠️ 真要卸载游戏：卸载会清空 Android/data，请先备份存档");
+            }
+
             // ---- 0. 先校验签名材料 ----
             // 放在最前面：签名材料有问题就别浪费几十秒去拷一个 165 MB 的包。
             stage("校验签名材料…");
@@ -948,15 +1038,17 @@ public class MainActivity extends Activity {
 
             outputApk = spec.dstApk;
             final String msg = getString(R.string.done, outputApk.getName());
+            final String skinWarn = doSkin ? "\n" + getString(R.string.skin_reinstall_warn_short) : "";
             ui.post(() -> {
                 tvStatus.setText(msg + "\n" + r.toString() + "\n"
-                        + fmt(r.outSize) + "，耗时 " + (r.millis / 1000.0) + " 秒");
+                        + fmt(r.outSize) + "，耗时 " + (r.millis / 1000.0) + " 秒" + skinWarn);
                 btnInstall.setEnabled(true);
-                progress.setProgress(1000);
+                progressDone();
             });
-            log("完成: " + outputApk.getAbsolutePath());
+            log("完成：" + outputApk.getAbsolutePath());
             log(r.toString());
-            log("源 " + fmt(r.srcSize) + " → 出 " + fmt(r.outSize));
+            log("源包大小 " + fmt(r.srcSize) + " → 产出大小 " + fmt(r.outSize));
+            if (doSkin) log(getString(R.string.skin_reinstall_warn_short));
 
             if (autoExport) {
                 ui.post(this::doExport);
@@ -986,27 +1078,49 @@ public class MainActivity extends Activity {
                 getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 if (cx) tvStatus.setText("已取消");
             });
-            log("结束，用时 " + dt + " ms");
+            log("结束，用时 " + dt + " 毫秒");
         }
     }
 
-    private static String sanitize(String s) {
-        StringBuilder sb = new StringBuilder(s.length());
+    private static String sanitize(String s) {        StringBuilder sb = new StringBuilder(s.length());
         for (char c : s.toCharArray()) {
             sb.append(Character.isLetterOrDigit(c) || c == '.' || c == '-' || c == '_' ? c : '_');
         }
         return sb.toString();
     }
 
+    /**
+     * 进度到 1000 = 这件事做完了：顺手把进度条藏起来。
+     *
+     * <p>进度条平时是隐藏的（空闲时那条 0% 的灰杠看起来像分隔线，用户提过），
+     * 由 {@link #stage(String)} 在任务开始时显示。
+     * <b>必须是方法调用</b>：它会被写进 `ui.post(() -> progressDone())` 这种一行 lambda 里，
+     * 往那里塞两条语句会编译不过（踩过）。
+     */
+    private void progressDone() {
+        progress.setProgress(1000);
+        findViewById(R.id.progress).setVisibility(View.GONE);
+    }
+
     private void stage(String text) {
+        taskRunning = true;        // 先置位，这样 log 里的"自动展开日志"才生效
         log("[" + text + "]");
-        ui.post(() -> tvStatus.setText(text));
+        ui.post(() -> {
+            tvStatus.setText(text);
+            // 任务开始就把进度条亮出来；完成时由 progressDone() 收起
+            findViewById(R.id.progress).setVisibility(View.VISIBLE);
+        });
     }
 
     private void log(String s) {
         logBuf.append(s).append('\n');
         final String all = logBuf.toString();
-        ui.post(() -> tvLog.setText(all));
+        ui.post(() -> {
+            tvLog.setText(all);
+            // 只有真正干活时才自动展开日志区。启动时那几行「就绪…」不展开，
+            // 否则一进页面日志就占掉半屏（用户反馈过页面太长）。
+            if (taskRunning) openLogBox();
+        });
     }
 
     private void copyUri(Uri from, File to, long knownSize, double pFrom, double pTo, double within)
@@ -1072,16 +1186,15 @@ public class MainActivity extends Activity {
             s.signerPrivateKeyPkcs8 = signerKey;
             s.signerCertificate = signerCert;
             bundledSha = ApkSignerHelper.selfTest(s);
-            log("内置签名证书 SHA-256: " + bundledSha);
+            log("内置签名证书 SHA-256：" + bundledSha);
             if (ApkSignerHelper.V19_CERT_SHA256.equalsIgnoreCase(bundledSha)) {
                 tvSign.setText(getString(R.string.sign_ok));
-                log("内置密钥与 minecraft 改包同签名 → 可直接覆盖安装");
             } else if (ApkSignerHelper.EXAMPLE_CERT_SHA256.equalsIgnoreCase(bundledSha)) {
                 // 公开仓库里带的是示例密钥：能跑，但谁都能签出能覆盖安装的包
                 tvSign.setText(getString(R.string.sign_example));
                 log("⚠️ 这是仓库里公开的【示例密钥】—— 谁都能签出能覆盖安装到你手机上的包。");
                 log("   想换成自己的：电脑上跑 tools/genkey.ps1（Linux/macOS 用 tools/genkey.sh），");
-                log("   再重新构建本工具。详见 app/src/main/assets/README.md。");
+                log("   再重新构建工具。详见 app/src/main/assets/README.md。");
             } else {
                 tvSign.setText(getString(R.string.sign_bad));
                 log("内置密钥与 minecraft 改包签名不同 → 安装前需卸载原版");
@@ -1095,11 +1208,11 @@ public class MainActivity extends Activity {
                 // 必须给出可操作的提示，而不是一句看不懂的读取失败。
                 tvSign.setText(getString(R.string.sign_missing));
                 log("没有找到签名密钥（assets/mc-patch-key.pk8 与 mc-patch-cert.pem）。");
-                log("  生成方法：电脑上跑 tools/genkey.ps1（Linux/macOS 用 tools/genkey.sh），再重新构建本工具。");
+                log("  生成方法：电脑上跑 tools/genkey.ps1（Linux/macOS 用 tools/genkey.sh），再重新构建工具。");
                 log("  详见 app/src/main/assets/README.md。");
             } else {
                 tvSign.setText(getString(R.string.sign_broken, msg));
-                log("读取内置签名材料失败: " + e);
+                log("读取内置签名材料失败：" + e);
             }
         }
     }
@@ -1122,7 +1235,7 @@ public class MainActivity extends Activity {
             in = getAssets().open("mc-import.js");
             return ApkPatcher.readAll(in);
         } catch (Throwable e) {
-            log("读取导入界面脚本失败（不影响其它改动）: " + e.getMessage());
+            log("读取导入界面脚本失败（不影响其它改动）：" + e.getMessage());
             return null;
         } finally {
             if (in != null) {
@@ -1148,11 +1261,13 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * 把外部世界处理成「游戏里一键导入」用的几个包，写进公共 Download 目录。
+     * 把外部世界处理成「游戏里一键导入」用的几个包，写进**游戏能读到的共享目录**。
      *
-     * <p>为什么写到 Download：这些包是给《我的世界》（另一个应用）读的，
-     * 游戏里的 H5 会按 {@code /sdcard/Download/mcweb_1_root.zip} 这样的绝对路径打开它们，
-     * 放在本应用的 {@code Android/data} 里游戏读不到。写 Download 不需要任何权限。
+     * <p>位置是 {@code /sdcard/Android/media/com.mctool.mcpatch/}，由 {@link ShareWriter}
+     * 负责。为什么不是 {@code Download/}：App 写进 {@code Download/} 的文件权限是
+     * {@code -rwxrwx--- owner:media_rw}，别的 App 按路径打开会 <b>EACCES</b> ——
+     * 真机上就是卡在这里（{@code [Errno 13] Permission denied}）。
+     * 详见 {@link ShareWriter} 的注释。
      */
     private void prepareImport(Uri src, String name, boolean downgrade) {
         try {
@@ -1172,32 +1287,44 @@ public class MainActivity extends Activity {
 
             WorldImportPrep.Result r = WorldImportPrep.prepare(local, slotId, downgrade);
 
-            log("世界名: " + r.levelName
+            log("世界名：" + r.levelName
                     + (r.worldPrefix.isEmpty() ? "" : "（包里有外壳目录 " + r.worldPrefix + "）"));
-            log("存档体检: " + WorldImportPrep.describe(r.before));
-            log("客户端能力: " + WorldImportPrep.clientDesc());
+            log("存档体检：" + WorldImportPrep.describe(r.before));
+            log("客户端能力：" + WorldImportPrep.clientDesc());
             if (r.patchedBytes >= 0) {
-                log("★ 已自动降级 → " + WorldImportPrep.describe(r.after)
+                log("已自动降级 → " + WorldImportPrep.describe(r.after)
                         + "（改动了 " + r.patchedBytes + " 个整数字段）");
             } else if (r.warning != null) {
-                log("提示: " + r.warning);
+                log("提示：" + r.warning);
             }
-            log("拆分结果: " + r.parts.size() + " 个包 / " + r.files + " 个文件 / " + fmt(r.bytes));
+            log("拆分结果：" + r.parts.size() + " 个包 / " + r.files + " 个文件 / " + fmt(r.bytes));
+
+            // 先清掉 Download 里【所有】mcweb_* 残留（不只当前槽位）。
+            // 游戏侧 H5 从槽位 1 依次扫：前面只要留着一个"半截"槽位
+            // （比如只有 _db 没有 _root），它就会卡在那一格，后面的完整包永远轮不到 ——
+            // 真机现象就是"怎么点都导入不了"（实测被残缺的槽位 4 挡住过完整的槽位 5）。
+            int cleaned = ShareWriter.purgeAll(this);
+            if (cleaned > 0) log("  清理旧包残留 " + cleaned + " 个");
 
             final int total = r.parts.size() + 1;
             int idx = 0;
             for (WorldImportPrep.Part p : r.parts) {
                 idx++;
                 stage(getString(R.string.import_writing, idx, total));
-                String fn = "mcweb_" + slot + "_" + p.suffix + ".zip";
-                DownloadWriter.write(this, fn, p.data, "application/zip");
-                log("  写入 " + fn + "  (" + fmt(p.data.length) + ")");
-                progress.setProgress((int) ((0.35 + 0.6 * idx / (double) total) * 1000));
+                String fn = "mcweb_" + slot + "_" + p.suffix;
+                ShareWriter.write(this, fn, p.data);
+                log("  写入 " + fn + ShareWriter.EXT + "  (" + fmt(p.data.length) + ")");
+                // 本方法跑在后台线程（new Thread(() -> prepareImport(...))），
+                // 碰任何 View 都必须回主线程，否则抛 CalledFromWrongThreadException
+                // —— 真机上表现成「导入准备失败」而包其实已经写好了（第一次必失败）。
+                final int pv = (int) ((0.35 + 0.6 * idx / (double) total) * 1000);
+                ui.post(() -> progress.setProgress(pv));
             }
             stage(getString(R.string.import_writing, total, total));
-            DownloadWriter.write(this, "mcweb_" + slot + "_record.zip", r.recordZip, "application/zip");
-            log("  写入 mcweb_" + slot + "_record.zip  (世界记录)");
-            progress.setProgress(1000);
+            ShareWriter.write(this, "mcweb_" + slot + "_record", r.recordZip);
+            log("  写入 mcweb_" + slot + "_record" + ShareWriter.EXT + "  (世界记录)");
+            log("  位置：" + ShareWriter.dirDesc());
+            ui.post(this::progressDone);
 
             final String msg = getString(R.string.import_ready, slotId, r.levelName);
             ui.post(() -> {
@@ -1217,26 +1344,27 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * 挑一个空闲槽位（1..{@link WorldImportPrep#SLOTS}）。
+     * 挑一个槽位（1..{@link WorldImportPrep#SLOTS}）。
      *
-     * <p>"空闲" = {@code Download/mcweb_<slot>_root.zip} 不存在。游戏解压成功后会**消耗掉源包**，
-     * 所以这个判断天然等价于"这个槽位还没被导入过"，不需要额外记状态。
-     * 靠它避免把上一次导入的世界覆盖掉。
+     * <p>顺序很重要：
+     * <ol>
+     *   <li><b>先找"还没被游戏取走"的槽位</b>（{@code mcweb_<n>_root} 还在）。
+     *       有就直接<b>复用并覆盖</b>它 —— 否则用户每点一次「② 准备导入」就多占一个槽位，
+     *       之后每点一次「导入世界」就会把那些残留的包依次导进来，凭空多出一堆世界
+     *       （真机上手点三次踩过）。</li>
+     *   <li>都空着，才按轮转计数器拿一个新槽位。游戏解压成功后会<b>消耗掉源包</b>，
+     *       所以"槽位空着"天然等价于"这个槽位没被用过"，不需要额外记状态。</li>
+     * </ol>
      */
     private int nextSlot() {
-        int cur = prefs.getInt("import_slot", 1);
-        if (cur < 1 || cur > WorldImportPrep.SLOTS) cur = 1;
-        for (int i = 0; i < WorldImportPrep.SLOTS; i++) {
-            int s = cur + i;
-            if (s > WorldImportPrep.SLOTS) s -= WorldImportPrep.SLOTS;
-            if (!DownloadWriter.exists(this, "mcweb_" + s + "_root.zip")) {
-                prefs.edit().putInt("import_slot",
-                        s >= WorldImportPrep.SLOTS ? 1 : s + 1).apply();
+        for (int s = 1; s <= WorldImportPrep.SLOTS; s++) {
+            if (ShareWriter.existsAny(this, "mcweb_" + s + "_root")) {
+                log("复用槽位 " + s + "（上次准备的包还没被游戏取走，直接覆盖）");
                 return s;
             }
         }
-        // 九个槽位都占着（很少见）：还是用当前这个，会在日志里提醒
-        log("注意：9 个槽位都在使用中，本次会覆盖槽位 " + cur + " 对应的世界");
+        int cur = prefs.getInt("import_slot", 1);
+        if (cur < 1 || cur > WorldImportPrep.SLOTS) cur = 1;
         prefs.edit().putInt("import_slot",
                 cur >= WorldImportPrep.SLOTS ? 1 : cur + 1).apply();
         return cur;
@@ -1244,7 +1372,23 @@ public class MainActivity extends Activity {
 
     // ================================================================== 安装/导出/日志
 
+    /**
+     * 「立即安装」入口：先弹一句提醒再装。
+     *
+     * <p>覆盖安装本身不丢存档，但如果签名不同、系统要求先卸载，卸载会清空
+     * {@code Android/data}（存档全在里面）。实测丢过一次，所以这里必须提醒。
+     */
     private void doInstall() {
+        if (outputApk == null || !outputApk.isFile()) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.install_confirm_title)
+                .setMessage(R.string.install_confirm_msg)
+                .setPositiveButton("继续安装", (d, w) -> reallyInstall())
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void reallyInstall() {
         if (outputApk == null || !outputApk.isFile()) return;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             PackageManager pm = getPackageManager();
@@ -1268,7 +1412,7 @@ public class MainActivity extends Activity {
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(i);
         } catch (Exception e) {
-            toast("调起安装器失败: " + e.getMessage());
+            toast("调起安装器失败：" + e.getMessage());
             log("调起安装器失败，可到 Download 目录手动点安装");
         }
     }
@@ -1293,7 +1437,7 @@ public class MainActivity extends Activity {
             cm.setPrimaryClip(ClipData.newPlainText("MCPatchTool", sb.toString()));
             toast(getString(R.string.log_copied));
         } catch (Throwable e) {
-            toast("复制失败: " + e.getMessage());
+            toast("复制失败：" + e.getMessage());
         }
     }
 
@@ -1309,7 +1453,11 @@ public class MainActivity extends Activity {
         }
         new Thread(() -> {
             try {
-                String name = src.getName();
+                // 名字要能一眼和 Download 里那些给游戏读的 .png 区分开
+                String name = "MCPatchTool-输出的改包-"
+                        + new java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US)
+                        .format(new java.util.Date())
+                        + ".apk";
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     ContentValues cv = new ContentValues();
                     cv.put(MediaStore.Downloads.DISPLAY_NAME, name);
@@ -1346,7 +1494,7 @@ public class MainActivity extends Activity {
                     log("已导出到 Download/" + name);
                 });
             } catch (Throwable e) {
-                ui.post(() -> toast("导出失败: " + e.getMessage()));
+                ui.post(() -> toast("导出失败：" + e.getMessage()));
             }
         }, "mc-export").start();
     }
